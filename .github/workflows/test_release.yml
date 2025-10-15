@@ -44,7 +44,7 @@ on:
         description: '是否开启增加更多ZRAM算法?'
         required: true
         type: boolean
-        default: true
+        default: false
       use_bbg:
         description: '是否开启BBG防格机补丁?'
         required: true
