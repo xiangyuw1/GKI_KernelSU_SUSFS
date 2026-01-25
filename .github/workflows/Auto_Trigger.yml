@@ -98,13 +98,13 @@ jobs:
             -d '{
               "ref": "dev",
               "inputs": {
-                "make_release": "true",
                 "kernelsu_variant": "SukiSU",
                 "kernelsu_branch": "Stable(标准)",
                 "version": "'"${VERSION}"'",
                 "use_zram": "false",
                 "use_bbg": "true",
                 "use_kpm": "true",
+                "cancel_susfs": "false",
                 "get_manager": "true"
               }
             }'
