@@ -10,6 +10,11 @@
 
 name: 构建内核
 
+# 并发控制：同一分支只运行一个实例，新运行会取消旧的
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions:
   contents: write
   actions: write
@@ -51,12 +56,6 @@ on:
         type: string
         default: ""
         required: false
-      build_time:
-        description: "构建时间 (可选)"
-        type: string
-        default: ""
-        required: false
-
       # ==================== 功能开关 ====================
       use_zram:
         description: "启用 ZRAM 增强算法"
@@ -72,14 +71,6 @@ on:
         default: true
       cancel_susfs:
         description: "禁用 SUSFS"
-        type: boolean
-        default: false
-      get_manager:
-        description: "获取最新管理器"
-        type: boolean
-        default: true
-      onlyAk3:
-        description: "仅上传 AK3 压缩包"
         type: boolean
         default: false
 
@@ -109,7 +100,6 @@ jobs:
   # ==================== 获取管理器 ====================
   # 下载最新的 KernelSU 管理器 APK 和 SUSFS 模块
   get-manager:
-    if: inputs.get_manager
     uses: ./.github/workflows/get-manager.yml
     secrets: inherit
     with:
@@ -124,12 +114,11 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       kernelsu_branch: ${{ inputs.kernelsu_branch }}
       version: ${{ inputs.version }}
-      build_time: ${{ inputs.build_time }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       cancel_susfs: ${{ inputs.cancel_susfs }}
-      onlyAk3: ${{ inputs.onlyAk3 }}
+      called_from_main: true
 
   # ==================== Android 13 - 5.15 构建 ====================
   build-a13-5-15:
@@ -140,12 +129,11 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       kernelsu_branch: ${{ inputs.kernelsu_branch }}
       version: ${{ inputs.version }}
-      build_time: ${{ inputs.build_time }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       cancel_susfs: ${{ inputs.cancel_susfs }}
-      onlyAk3: ${{ inputs.onlyAk3 }}
+      called_from_main: true
 
   # ==================== Android 14 - 6.1 构建 ====================
   build-a14-6-1:
@@ -156,12 +144,11 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       kernelsu_branch: ${{ inputs.kernelsu_branch }}
       version: ${{ inputs.version }}
-      build_time: ${{ inputs.build_time }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       cancel_susfs: ${{ inputs.cancel_susfs }}
-      onlyAk3: ${{ inputs.onlyAk3 }}
+      called_from_main: true
 
   # ==================== Android 15 - 6.6 构建 ====================
   build-a15-6-6:
@@ -172,17 +159,16 @@ jobs:
       kernelsu_variant: ${{ inputs.kernelsu_variant }}
       kernelsu_branch: ${{ inputs.kernelsu_branch }}
       version: ${{ inputs.version }}
-      build_time: ${{ inputs.build_time }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       cancel_susfs: ${{ inputs.cancel_susfs }}
-      onlyAk3: ${{ inputs.onlyAk3 }}
+      called_from_main: true
 
   # ==================== 收集补丁冲突文件 ====================
   # 汇总所有构建任务中的 .rej 文件，方便调试补丁问题
   collect-rejects:
-    if: always()
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     needs:
       - build-a12-5-10
@@ -219,8 +205,9 @@ jobs:
 
   # ==================== 创建发布 ====================
   # 当 release_type 不是 Actions 时，创建 GitHub Release
+  # 仅限原仓库运行，fork 仓库跳过此步骤
   release:
-    if: always() && inputs.release_type != 'Actions'
+    if: ${{ always() && !cancelled() && inputs.release_type != 'Actions' && github.repository == 'zzh20188/GKI_KernelSU_SUSFS' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -234,29 +221,62 @@ jobs:
 
     # ==================== 环境变量 ====================
     env:
-      REPO_OWNER: zzh20188
-      REPO_NAME: GKI_KernelSU_SUSFS
+      REPO_OWNER: ${{ github.repository_owner }}
+      REPO_NAME: ${{ github.event.repository.name }}
       GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      # 发布标题
-      RELEASE_NAME: "GKI内核: ${{ inputs.kernelsu_variant == 'Next' && 'KernelSU-' || '' }}${{ inputs.kernelsu_variant }}(${{ needs.get-manager.outputs.ksuVer }}) & SUSFS ${{ needs.get-manager.outputs.susVer }}"
-      # 发布说明
-      RELEASE_NOTES: |
-        此处包含：**${{ inputs.kernelsu_variant == 'Next' && 'KernelSU-' || '' }}${{ inputs.kernelsu_variant }}**、SUSFS ${{ needs.get-manager.outputs.susVer }} ${{ inputs.use_zram && '、LZ4KD' || '' }}
-
-        功能:
-        -> ${{ inputs.kernelsu_variant == 'Next' && 'KernelSU-' || '' }}${{ inputs.kernelsu_variant }}${{ inputs.kernelsu_variant == 'Official' && '原版' || '' }}${{ inputs.kernelsu_branch == 'Dev(开发)' && format('({0})', needs.get-manager.outputs.ksuVer) || '稳定版' }}
-        -> SUSFS ඞ ${{ needs.get-manager.outputs.susVer }}
-        ${{ inputs.kernelsu_variant != 'SukiSU' && '-> KPROBE Hooks' || '-> SUSFS Inline Hooks' }}
-        ${{ inputs.kernelsu_variant != 'Official' && '-> Magic Mount 支持' || '-> OVERLAYFS 支持' }}
-        -> BBG安全补丁 ${{ inputs.use_bbg && '支持' || '不支持' }}
-        ${{ inputs.use_kpm && '-> KPM 支持' || '' }} | 若不支持可[手动修补](https://github.com/zzh20188/GKI_KernelSU_SUSFS/issues/132)
-        -> **LZ4KD&ONEPLUS_LZ4K** ${{ inputs.use_zram && '开启' || '未开启' }}
-        -> lz4: v1.10.0 ${{ inputs.use_zram && '开启' || '未开启' }}
-        -> [Unicode零宽绕过修复与内存优化](https://t.me/real5ec1cff/268) 请直接使用Xp模块
-        模块:
-        -> https://github.com/sidex15/ksu_module_susfs
 
     steps:
+      # ==================== 设置显示名称 ====================
+      # 预计算各种显示名称，简化后续引用
+      - name: 设置显示名称
+        run: |
+          # KSU 显示名称
+          case "${{ inputs.kernelsu_variant }}" in
+            "Next")     KSU_NAME="KernelSU-Next" ;;
+            "Official") KSU_NAME="KernelSU" ;;
+            "MKSU")     KSU_NAME="MKSU" ;;
+            "SukiSU")   KSU_NAME="SukiSU" ;;
+          esac
+          echo "KSU_NAME=$KSU_NAME" >> $GITHUB_ENV
+
+          # 版本信息
+          KSU_VER="${{ needs.get-manager.outputs.ksuVer }}"
+          SUS_VER="${{ needs.get-manager.outputs.susVer }}"
+          echo "KSU_VER=$KSU_VER" >> $GITHUB_ENV
+          echo "SUS_VER=$SUS_VER" >> $GITHUB_ENV
+
+          # 功能开关显示
+          echo "LZ4_STATUS=${{ inputs.use_zram && '开启' || '未开启' }}" >> $GITHUB_ENV
+          echo "BBG_STATUS=${{ inputs.use_bbg && '支持' || '不支持' }}" >> $GITHUB_ENV
+          echo "KPM_LINE=${{ inputs.use_kpm && '-> KPM 支持' || '' }}" >> $GITHUB_ENV
+          echo "LZ4_SUFFIX=${{ inputs.use_zram && '、LZ4KD' || '' }}" >> $GITHUB_ENV
+
+          # Hook 类型
+          if [ "${{ inputs.kernelsu_variant }}" = "SukiSU" ]; then
+            echo "HOOK_TYPE=-> SUSFS Inline Hooks" >> $GITHUB_ENV
+          else
+            echo "HOOK_TYPE=-> KPROBE Hooks" >> $GITHUB_ENV
+          fi
+
+          # Mount 类型
+          if [ "${{ inputs.kernelsu_variant }}" = "Official" ]; then
+            echo "MOUNT_TYPE=-> OVERLAYFS 支持" >> $GITHUB_ENV
+            echo "KSU_SUFFIX=原版" >> $GITHUB_ENV
+          else
+            echo "MOUNT_TYPE=-> Magic Mount 支持" >> $GITHUB_ENV
+            echo "KSU_SUFFIX=" >> $GITHUB_ENV
+          fi
+
+          # 分支显示
+          if [ "${{ inputs.kernelsu_branch }}" = "Dev(开发)" ]; then
+            echo "BRANCH_INFO=($KSU_VER)" >> $GITHUB_ENV
+          else
+            echo "BRANCH_INFO=稳定版" >> $GITHUB_ENV
+          fi
+
+          # 发布标题
+          echo "RELEASE_NAME=GKI内核: ${KSU_NAME}(${KSU_VER}) & SUSFS ${SUS_VER}" >> $GITHUB_ENV
+
       # ==================== 验证构建状态 ====================
       # 确保所有选中的构建任务都成功完成
       - name: 验证构建状态
@@ -342,13 +362,81 @@ jobs:
       # 创建包含详细信息的发布说明文档
       - name: 生成发布说明
         run: |
-          cat > release_body.md << 'EOFNOTES'
-          ${{ env.RELEASE_NOTES }}
+          cat > release_body.md << EOF
+          ## 📦 本次发布内容 / Release Contents
+
+          **${{ env.KSU_NAME }}** + **SUSFS ${{ env.SUS_VER }}**${{ env.LZ4_SUFFIX }}
+
+          ### ✨ 功能特性 / Features
+
+          | 组件 / Component | 状态 / Status |
+          |:---|:---|
+          | ${{ env.KSU_NAME }} | ${{ env.KSU_SUFFIX }}${{ env.BRANCH_INFO }} |
+          | SUSFS | ඞ ${{ env.SUS_VER }} |
+          | BBG 安全补丁 | ${{ env.BBG_STATUS }} |
+          | LZ4KD & ONEPLUS_LZ4K | ${{ env.LZ4_STATUS }} |
+          | LZ4 | v1.10.0 ${{ env.LZ4_STATUS }} |
+
+          ${{ env.HOOK_TYPE }}
+          ${{ env.MOUNT_TYPE }}
+          ${{ env.KPM_LINE }} 
+
+          > 💡 [Unicode 零宽绕过修复](https://t.me/real5ec1cff/268) - 请使用 Xposed 模块
+
+          ### 📥 推荐模块 / Recommended Module
+
+          - https://github.com/sidex15/ksu_module_susfs
+
+          ---
+
+          > [!IMPORTANT]
+          > ### ⚠️ 风险声明 / Risk Disclaimer
+          >
+          > 本项目整合了多个**活跃维护的上游组件**，由于各组件更新频繁且相互依赖，**可能出现以下问题**：
+          >
+          > - 🔄 无限重启 (Bootloop)
+          > - 🐛 功能异常或系统不稳定
+          >
+          > **刷入前请务必：**
+          > 1. 备份原厂 Boot 镜像，确保可随时恢复
+          > 2. 记录当前时间，便于日志分析
+          >
+          > ---
+          >
+          > This project integrates multiple **actively maintained upstream components**. Due to frequent updates and dependencies, **the following issues may occur**:
+          >
+          > - 🔄 Bootloop
+          > - 🐛 Functional issues or system instability
+          >
+          > **Before flashing, please ensure:**
+          > 1. Backup your stock boot image for recovery
+          > 2. Note the current time for log analysis
+
+          <details>
+          <summary>📋 刷入后指南 / Post-Flash Guide</summary>
+
+          #### ✅ 如果正常启动 / If Boot Successful
+
+          恭喜！享受你的新内核吧 🎉
+
+          Congratulations! Enjoy your new kernel 🎉
+
+          #### ❌ 如果无法启动 / If Boot Failed
+
+          1. 恢复原厂 Boot 镜像
+          2. 使用 KernelSU 管理器提取内核日志
+          3. 将日志提交到 [Issues](https://github.com/zzh20188/GKI_KernelSU_SUSFS/issues) 或咨询专业人士
+
+          1. Restore stock boot image
+          2. Extract kernel logs using KernelSU Manager
+          3. Submit logs to [Issues](https://github.com/zzh20188/GKI_KernelSU_SUSFS/issues) or consult experts
+
+          </details>
 
           ---
 
           <details>
-          <summary>提交信息 / Commit Info</summary>
+          <summary>🔗 提交信息 / Commit Info</summary>
 
           **KernelSU (${{ inputs.kernelsu_variant }})**: [${{ env.KSU_REF }}](${{ env.KSU_URL }})
 
@@ -361,10 +449,11 @@ jobs:
           </details>
 
           ---
-          LTO: thin
 
-          点击下方 **【Assets】** 展开资源
-          EOFNOTES
+          **LTO**: thin
+
+          📂 点击下方 **Assets** 展开下载 / Click **Assets** below to download
+          EOF
 
       # ==================== 生成版本标签 ====================
       # 根据 SUSFS 版本生成递增的发布标签
@@ -423,6 +512,8 @@ jobs:
         run: |
           for file in ./downloaded-artifacts/*_kernel-*/*; do
             [ -d "$file" ] && continue
+            # 跳过 -Rejects 目录中的文件（已在 collect-rejects 中汇总处理）
+            [[ "$file" == *-Rejects/* ]] && continue
             echo "上传 $file..."
             gh release upload "$NEW_TAG" "$file"
           done

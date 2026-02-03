@@ -1,4 +1,4 @@
-name: Kernel Config - A15 6.6
+name: 内核构建 - Android 15 (6.6)
 
 permissions:
   contents: write
@@ -30,10 +30,6 @@ on:
         description: '自定义版本名(如位于6.6.77-android15-8<自定义版本名>/留空则使用默认版本号)'
         required: false
         type: string
-      build_time:
-        description: '设置内核构建时间(格式见仓库说明)'
-        required: false
-        type: string
       use_zram:
         description: '是否开启增加更多ZRAM算法?'
         required: true
@@ -59,16 +55,6 @@ on:
         required: false
         type: boolean
         default: false
-      get_manager:
-        description: '获取最新KSU管理器和SUS模块?'
-        required: true
-        type: boolean
-        default: true
-      onlyAk3:
-        description: '仅上传AK3压缩包?(无boot,下载更快)'
-        required: false
-        type: boolean
-        default: false
   workflow_call:
     inputs:
       kernelsu_variant:
@@ -78,9 +64,6 @@ on:
         required: true
         type: string
       version:
-        required: false
-        type: string
-      build_time:
         required: false
         type: string
       use_zram:
@@ -98,9 +81,11 @@ on:
       supp_op:
         required: false
         type: boolean
-      onlyAk3:
+      called_from_main:
+        description: "是否从 main.yml 调用（内部使用）"
         required: false
         type: boolean
+        default: false
 
 jobs:
   build-kernels-a15-6-6:
@@ -139,12 +124,11 @@ jobs:
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
       supp_op: ${{ inputs.supp_op || false }}
-      only_ak3: ${{ inputs.onlyAk3 || false }}
-      build_time: ${{ inputs.build_time || '' }}
       enable_susfs: ${{ !inputs.cancel_susfs }}
 
+  # 仅在直接触发时运行，从 main.yml 调用时跳过
   get-ksu-manager:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.get_manager }}
+    if: ${{ !inputs.called_from_main }}
     uses: ./.github/workflows/get-manager.yml
     secrets: inherit
     with:
