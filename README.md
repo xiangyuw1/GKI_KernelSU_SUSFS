@@ -76,6 +76,54 @@ Wiki 涵盖内容：
 - 🆘 紧急救援指南
 - 📊 内核版本兼容性说明
 - **🔧 [Fork 与自定义编译指南](https://github.com/zzh20188/GKI_KernelSU_SUSFS/wiki/Fork%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89%E7%BC%96%E8%AF%91%E6%8C%87%E5%8D%97)** - 学习如何 Fork 仓库并编译自己的内核
+- **🧩 [自定义构建新手指南](https://github.com/zzh20188/GKI_KernelSU_SUSFS/wiki/%E8%87%AA%E5%AE%9A%E4%B9%89%E6%9E%84%E5%BB%BA%E6%96%B0%E6%89%8B%E6%8C%87%E5%8D%97)** - 面向新手的自定义构建模板
+如何使用见以下视频
+
+> - https://raw.githubusercontent.com/zzh20188/GKI_KernelSU_SUSFS/HEAD/assets/eg1.mp4
+> - https://raw.githubusercontent.com/zzh20188/GKI_KernelSU_SUSFS/HEAD/assets/eg2.mp4
+
+谷歌GKI发布地址：https://source.android.com/docs/core/architecture/kernel/gki-release-builds?hl=zh-cn
+
+---
+
+## 🔧 自定义提交配置
+
+通过 [`config/config`](config/config) 文件可以指定 SUSFS 和 SukiSU 使用特定的 commit。
+
+**什么是提交 (commit)？**
+
+提交是一串哈希字符串，代表仓库在某个时间点的状态。例如将 sukisu 设为 `4b8644515fe6d87a109129e590ccd9d33a855dca`，即使用 1 月 30 日的 SukiSU 版本编译内核。
+
+**为什么要指定提交？**
+
+- 当上游仓库更新引入 bug 或兼容性问题时，可回退到稳定版本
+- 当 SUSFS 与 SukiSU 版本不同步导致编译失败时，可手动指定兼容的版本
+
+**如何获取提交哈希？**
+
+- SUSFS: https://gitlab.com/simonpunk/susfs4ksu
+- SukiSU: https://github.com/SukiSU-Ultra/SukiSU-Ultra/commits/builtin/
+
+以 SUSFS 为例，先选择分支，再复制对应提交的哈希值：
+
+![选择分支](assets/susfs_branch.png)
+![复制提交](assets/susfs_commit.png)
+
+```ini
+# 启用自定义提交
+custom=true
+
+# SUSFS 各分支的 commit hash
+gki-android12-5.10=
+gki-android13-5.15=
+gki-android14-6.1=
+gki-android15-6.6=
+
+# SukiSU 的 commit hash
+sukisu=
+```
+
+> 留空则使用该分支的最新提交。
 
 ---
 

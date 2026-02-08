@@ -16,65 +16,52 @@ on:
     inputs:
       # ==================== 基础配置 ====================
       android_version:
-        description: "Android 版本 (如 android12, android13, android14, android15)"
         required: true
         type: string
       kernel_version:
-        description: "内核主版本 (如 5.10, 5.15, 6.1, 6.6)"
         required: true
         type: string
       sub_level:
-        description: "内核子版本号"
         required: true
         type: string
       os_patch_level:
-        description: "安全补丁级别 (如 2024-05)"
         required: true
         type: string
 
       # ==================== KernelSU 配置 ====================
       ksu_variant:
-        description: "KernelSU 变体 (Official/Next/MKSU/SukiSU)"
         required: true
         type: string
       ksu_branch:
-        description: "KernelSU 分支"
         required: true
         type: string
 
       # ==================== 可选配置 ====================
       version:
-        description: "自定义版本名"
         required: false
         type: string
       revision:
-        description: "修订版本"
         required: false
         type: string
 
       # ==================== 功能开关 ====================
       use_zram:
-        description: "启用 ZRAM 增强算法 (LZ4KD, LZ4K_OPLUS)"
         required: true
         type: boolean
         default: true
       use_bbg:
-        description: "启用 BBG 防格机补丁"
         required: true
         type: boolean
         default: true
       use_kpm:
-        description: "启用 KPM 内核补丁模块"
         required: true
         type: boolean
         default: true
       enable_susfs:
-        description: "启用 SUSFS 隐藏功能"
         required: true
         type: boolean
         default: true
       supp_op:
-        description: "支持一加 8E 处理器机型"
         required: false
         type: boolean
         default: false
@@ -250,9 +237,27 @@ jobs:
           if [ "${{ inputs.ksu_variant }}" == "SukiSU" ]; then
             # SukiSU 使用 ShirkNeko 的 SUSFS 分支
             git clone https://github.com/ShirkNeko/susfs4ksu.git -b "$SUSFS_BRANCH"
+          elif [ "${{ inputs.ksu_variant }}" == "ReSukiSU" ]; then
+            # ReSukiSU 使用 simonpunk 的原版 SUSFS
+            git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
           else
             # 其他变体使用 simonpunk 的原版 SUSFS
             git clone https://gitlab.com/simonpunk/susfs4ksu.git -b "$SUSFS_BRANCH"
+          fi
+
+          # 检查是否启用自定义提交
+          CONFIG_FILE="config/config"
+          if [ -f "$CONFIG_FILE" ]; then
+            CUSTOM_ENABLED=$(grep "^custom=" "$CONFIG_FILE" | cut -d'=' -f2)
+            if [ "$CUSTOM_ENABLED" == "true" ]; then
+              CUSTOM_COMMIT=$(grep "^${SUSFS_BRANCH}=" "$CONFIG_FILE" | cut -d'=' -f2)
+              if [ -n "$CUSTOM_COMMIT" ]; then
+                echo "切换 SUSFS 到自定义提交: $CUSTOM_COMMIT"
+                cd susfs4ksu
+                git checkout "$CUSTOM_COMMIT"
+                cd ..
+              fi
+            fi
           fi
 
           echo "克隆补丁仓库..."
@@ -350,7 +355,8 @@ jobs:
             "Stable(标准)")
               case "$variant_input" in
                 "Next") BRANCH="-s stable" ;;
-                "SukiSU") BRANCH="-s builtin" ;;
+                "SukiSU"|"ReSukiSU") BRANCH="-s builtin" ;;
+                "Official"|"MKSU") BRANCH="-s main" ;;
                 *) BRANCH="-" ;;
               esac
               ;;
@@ -358,7 +364,7 @@ jobs:
               case "$variant_input" in
                 "Official"|"MKSU") BRANCH="-s main" ;;
                 "Next") BRANCH="-s dev" ;;
-                "SukiSU") BRANCH="-s builtin" ;;
+                "SukiSU"|"ReSukiSU") BRANCH="-s builtin" ;;
                 *) echo "未知变体: $variant_input" >&2; exit 1 ;;
               esac
               ;;
@@ -368,9 +374,24 @@ jobs:
               ;;
           esac
 
-          # SukiSU 不启用 SUSFS 时强制使用 main 分支
-          if [ "$variant_input" = "SukiSU" ] && [ "${{ inputs.enable_susfs }}" = "false" ]; then
-            BRANCH="-s main"
+          # SukiSU/ReSukiSU 不启用 SUSFS 时强制使用 main 分支
+          if [ "$variant_input" = "SukiSU" ] || [ "$variant_input" = "ReSukiSU" ]; then
+            if [ "${{ inputs.enable_susfs }}" = "false" ]; then
+              BRANCH="-s main"
+            fi
+          fi
+
+          # 检查是否启用自定义提交 (仅对 SukiSU 生效)
+          CONFIG_FILE="config/config"
+          if [ -f "$CONFIG_FILE" ]; then
+            CUSTOM_ENABLED=$(grep "^custom=" "$CONFIG_FILE" | cut -d'=' -f2)
+            if [ "$CUSTOM_ENABLED" == "true" ] && [ "$variant_input" == "SukiSU" ]; then
+              SUKISU_COMMIT=$(grep "^sukisu=" "$CONFIG_FILE" | cut -d'=' -f2)
+              if [ -n "$SUKISU_COMMIT" ]; then
+                BRANCH="-s $SUKISU_COMMIT"
+                echo "SukiSU 使用自定义提交: $SUKISU_COMMIT"
+              fi
+            fi
           fi
 
           echo "BRANCH=$BRANCH" >> $GITHUB_ENV
@@ -385,18 +406,50 @@ jobs:
             "Official")
               echo "添加 KernelSU 官方版..."
               curl -LSs "https://raw.githubusercontent.com/tiann/KernelSU/main/kernel/setup.sh" | bash $BRANCH
+
+              # 计算并设置 KSU 版本号
+              cd KernelSU
+              KSU_GIT_VERSION=$(git rev-list --count HEAD)
+              KSU_VERSION=$((20000 + KSU_GIT_VERSION))
+              echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
+              echo "计算的 KSU 版本号: $KSU_VERSION"
+
+              # 更新 Kbuild 中的版本号
+              if [ -f "kernel/Kbuild" ]; then
+                sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Kbuild
+                echo "已更新 kernel/Kbuild 中的版本号"
+              fi
+              cd ..
               ;;
             "Next")
               echo "添加 KernelSU-Next..."
-              curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/next/kernel/setup.sh" | bash $BRANCH
+              curl -LSs "https://raw.githubusercontent.com/KernelSU-Next/KernelSU-Next/refs/heads/dev/kernel/setup.sh" | bash -s dev_susfs
               ;;
             "MKSU")
               echo "添加 MKSU..."
               curl -LSs "https://raw.githubusercontent.com/5ec1cff/KernelSU/main/kernel/setup.sh" | bash $BRANCH
+
+              # 计算并设置 KSU 版本号
+              cd KernelSU
+              KSU_GIT_VERSION=$(git rev-list --count HEAD)
+              KSU_VERSION=$((20000 + KSU_GIT_VERSION))
+              echo "KSU_VERSION=$KSU_VERSION" >> $GITHUB_ENV
+              echo "计算的 KSU 版本号: $KSU_VERSION"
+
+              # 更新 Kbuild 中的版本号
+              if [ -f "kernel/Kbuild" ]; then
+                sed -i "s/DKSU_VERSION=16/DKSU_VERSION=${KSU_VERSION}/" kernel/Kbuild
+                echo "已更新 kernel/Kbuild 中的版本号"
+              fi
+              cd ..
               ;;
             "SukiSU")
               echo "添加 SukiSU..."
               curl -LSs "https://raw.githubusercontent.com/SukiSU-Ultra/SukiSU-Ultra/main/kernel/setup.sh" | bash $BRANCH
+              ;;
+            "ReSukiSU")
+              echo "添加 ReSukiSU..."
+              curl -LSs "https://raw.githubusercontent.com/ReSukiSU/ReSukiSU/main/kernel/setup.sh" | bash $BRANCH
               ;;
           esac
 
@@ -425,25 +478,23 @@ jobs:
             "Official"|"MKSU")
               cd ./KernelSU
               cp $SUSFS4KSU/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-              patch -p1 --forward < 10_enable_susfs_for_ksu.patch || true
-              ;;
-            "Next")
-              cd ./KernelSU-Next
-              cp $SUSFS4KSU/kernel_patches/KernelSU/10_enable_susfs_for_ksu.patch ./
-              patch -p1 < 10_enable_susfs_for_ksu.patch || true
 
-              # 应用 Next 版本专用修复补丁
-              cp "$KERNEL_PATCHES/next/susfs_fix_patches/v${SUSFS_VERSION}/"*.patch ./
-              for patch_file in fix_Makefile.patch fix_allowlist.c.patch fix_apk_sign.c.patch \
-                               fix_kernel_umount.c.patch fix_ksu.c.patch fix_ksud.c.patch \
-                               fix_selinux.c.patch fix_setuid_hook.c.patch fix_sucompat.c.patch \
-                               fix_supercalls.c.patch overwrite_hook_mode.patch ksu_toolkit.patch; do
-                echo "应用 $patch_file..."
-                patch -p1 < "$patch_file" || true
-              done
+              # 修复补丁格式（Makefile → Kbuild）
+              sed -i 's|kernel/Makefile|kernel/Kbuild|g' ./10_enable_susfs_for_ksu.patch
+
+              # 修复补丁上下文行数
+              sed -i 's|^@@ .* format:.*|@@ -94,4 +94,13 @@|' ./10_enable_susfs_for_ksu.patch
+
+              # 修复编译警告配置
+              sed -i 's|.*check-format:.*| ccflags-y += -Wno-strict-prototypes -Wno-int-conversion -Wno-gcc-compat -Wno-missing-prototypes|' ./10_enable_susfs_for_ksu.patch
+              sed -i 's|.*clang-format --dry-run.*| ccflags-y += -Wno-declaration-after-statement -Wno-unused-function -Wno-unused-variable|' ./10_enable_susfs_for_ksu.patch
+
+              # 应用补丁
+              patch -p1 < 10_enable_susfs_for_ksu.patch || true
+              cd ..
               ;;
-            "SukiSU")
-              echo "SukiSU 使用内置 SUSFS 支持"
+            "Next"|"SukiSU"|"ReSukiSU")
+              echo "Next/SukiSU/ReSukiSU 使用内置 SUSFS 支持"
               ;;
           esac
 
@@ -451,8 +502,8 @@ jobs:
           cd $KERNEL_ROOT/common
           patch -p1 < 50_add_susfs_in_gki-${{ inputs.android_version }}-${{ inputs.kernel_version }}.patch || true
 
-          # 应用版本特定修复 (Next/SukiSU 变体)
-          if [ "${{ inputs.ksu_variant }}" == "Next" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU" ]; then
+          # 应用版本特定修复 (Next/SukiSU/ReSukiSU 变体)
+          if [ "${{ inputs.ksu_variant }}" == "Next" ] || [ "${{ inputs.ksu_variant }}" == "SukiSU" ] || [ "${{ inputs.ksu_variant }}" == "ReSukiSU" ]; then
             CURRENT_SUB="${{ inputs.sub_level }}"
             if [[ ! "$CURRENT_SUB" =~ ^[0-9]+$ ]]; then
               CURRENT_SUB=99999
@@ -663,7 +714,7 @@ jobs:
           CONFIG_TMPFS_POSIX_ACL=y
           EOF
 
-          if [ "${{ inputs.ksu_variant }}" == "SukiSU" ]; then
+          if [ "${{ inputs.ksu_variant }}" == "SukiSU" ] || [ "${{ inputs.ksu_variant }}" == "ReSukiSU" ] || [ "${{ inputs.ksu_variant }}" == "Next" ]; then
             echo "CONFIG_KPM=y" >> "$DEFCONFIG"
           fi
 
@@ -722,13 +773,20 @@ jobs:
 
       # ==================== 编译内核 ====================
       # 使用重试机制编译内核，超时后自动重试
-      - name: 编译内核
+      - name: 构建——如出错为该KSU暂时未同步SUSFS代码或编译时错误(等待该KSU仓库修复)
         uses: nick-fields/retry@v3
         with:
           timeout_minutes: 30
           max_attempts: 3
           retry_on: timeout
           command: |
+            echo "::group::构建说明"
+            echo "一般情况下不会出错，除非KSU仓库和SUSFS仓库代码不同。"
+            echo "不要问，不要急，这跟你怎么努力，或者跟我反馈没关系，因为这跟我无关。"
+            echo "等待适配即可，你有能力则自己去SUKISU仓库提交代码，"
+            echo "::endgroup::"
+            
+
             set -ex
             cd "$KERNEL_ROOT"
 
@@ -745,10 +803,14 @@ jobs:
               strings ./bazel-bin/common/kernel_aarch64/Image | grep 'Linux version'
             fi
 
+            echo "一般情况下不会出错，除非KSU仓库和SUSFS仓库代码不同。"
+            echo "不要问，不要急，这跟你怎么努力，或者跟我反馈没关系，因为这跟我无关。"
+            echo "等待适配即可，你有能力则自己去SUKISU仓库提交代码，"
+
       # ==================== KPM 补丁 (仅 SukiSU) ====================
       # 为 SukiSU 应用 KPM (Kernel Patch Module) 补丁
-      - name: 应用 KPM 补丁 (仅 SukiSU)
-        if: inputs.use_kpm && inputs.ksu_variant == 'SukiSU'
+      - name: 应用 KPM 补丁 (SukiSU/ReSukiSU/Next)
+        if: inputs.use_kpm && (inputs.ksu_variant == 'SukiSU' || inputs.ksu_variant == 'ReSukiSU' || inputs.ksu_variant == 'Next')
         run: |
           case "${{ inputs.android_version }}" in
             "android12"|"android13")
