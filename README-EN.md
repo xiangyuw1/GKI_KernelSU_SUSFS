@@ -1,13 +1,14 @@
 <div align="center">
 
 # GKI KernelSU SUSFS
+# 🏮 2026 🐎 Happy New Year! 🏮
 
-**Automated GKI Kernel Builds | KernelSU + SUSFS Integration**
+**Automated GKI Kernel Builds | KernelSU + SUSFS Integrated**
 
-[![GitHub Stars](https://img.shields.io/github/stars/zzh20188/GKI_KernelSU_SUSFS?style=for-the-badge&logo=github&color=yellow)](https://github.com/zzh20188/GKI_KernelSU_SUSFS/stargazers)
-[![GitHub Forks](https://img.shields.io/github/forks/zzh20188/GKI_KernelSU_SUSFS?style=for-the-badge&logo=github&color=blue)](https://github.com/zzh20188/GKI_KernelSU_SUSFS/network/members)
-[![GitHub Release](https://img.shields.io/github/v/release/zzh20188/GKI_KernelSU_SUSFS?style=for-the-badge&logo=android&color=green)](https://github.com/zzh20188/GKI_KernelSU_SUSFS/releases)
-[![GitHub Actions](https://img.shields.io/github/actions/workflow/status/zzh20188/GKI_KernelSU_SUSFS/gki-kernel.yml?style=for-the-badge&logo=github-actions&label=Build)](https://github.com/zzh20188/GKI_KernelSU_SUSFS/actions)
+[![Release](https://img.shields.io/github/v/release/zzh20188/GKI_KernelSU_SUSFS?label=Release&style=flat-square&logo=github&logoColor=white&color=2ea44f)](https://github.com/zzh20188/GKI_KernelSU_SUSFS/releases)
+[![Coolapk](https://img.shields.io/badge/Follow-Coolapk-3DDC84?style=flat-square&logo=android&logoColor=white)](http://www.coolapk.com/u/11253396)
+[![KernelSU](https://img.shields.io/badge/KernelSU-Supported-5AA300?style=flat-square)](https://kernelsu.org/)
+[![SUSFS](https://img.shields.io/badge/SUSFS-Integrated-E67E22?style=flat-square)](https://gitlab.com/simonpunk/susfs4ksu)
 
 English | [**简体中文**](README.md)
 
@@ -19,25 +20,18 @@ English | [**简体中文**](README.md)
 
 <table>
 <tr>
-<td align="center" width="33%">
+<td align="center" width="50%">
 
-**📖 Docs**
+**📖 Documentation**
 
 [GitHub Wiki](https://github.com/zzh20188/GKI_KernelSU_SUSFS/wiki)
 
 </td>
-<td align="center" width="33%">
+<td align="center" width="50%">
 
-**📥 Download**
+**📥 Downloads**
 
 [Releases](https://github.com/zzh20188/GKI_KernelSU_SUSFS/releases)
-
-</td>
-<td align="center" width="33%">
-
-**📋 Changelog**
-
-[CHANGELOG](doc/CHANGELOG-EN.md)
 
 </td>
 </tr>
@@ -47,38 +41,99 @@ English | [**简体中文**](README.md)
 
 ## ⚠️ Compatibility Notice
 
-> **Note:** Not supported on OnePlus ColorOS 14/15. You may need to wipe data after flashing.
+> **Note:** OnePlus ColorOS 14/15 is currently not supported. A data wipe may be required after flashing.
 
----
+> Direction: We may add compatibility for a few specific popular 6.1-6.6 models in future updates. Feel free to report via Issues.
 
-## ✨ Special Editions
-
-| Edition | Description | Download |
-|:---:|:---|:---:|
-| **hymo+gki** | Integrated [hymo mount meta-module](https://github.com/Anatdx/hymo) (6.6 only) | [Release v2.0.0-r24](https://github.com/zzh20188/GKI_KernelSU_SUSFS/releases/tag/v2.0.0-r24) |
-| **resukisu+gki** | Integrated [ReSukisu](https://github.com/ReSukiSU/ReSukiSU) | [Release v2.0.0-r26](https://github.com/zzh20188/GKI_KernelSU_SUSFS/releases/tag/v2.0.0-r26) |
-
-> 💡 Prebuilt versions include the zero-width fix patch. Alternatively, use the [Unicode zero-width fix module](https://t.me/real5ec1cff/268) (Xposed)
 
 ---
 
 ## 📚 Documentation & Guides
 
-For detailed instructions, please refer to the [**GitHub Wiki (Bilingual)**](https://github.com/zzh20188/GKI_KernelSU_SUSFS/wiki)
+For detailed instructions, please refer to the [**GitHub Wiki (bilingual CN/EN)**](https://github.com/zzh20188/GKI_KernelSU_SUSFS/wiki)
 
-Wiki Contents:
-- 📥 Download & Flash Guide
-- 🔄 Bootloop Recovery
-- 🐛 Bug Reporting Guidelines
+Wiki covers:
+- 📥 Download / Flash kernel
 - 💡 Tips & Tricks
-- 📱 KSU Manager & SUSFS Module
-- ⏰ Kernel Build Time Info
-- 🆘 Emergency Rescue Guide
+- 🆘 Brick Recovery Guide
 - 📊 Kernel Version Compatibility
+- **🔧 [Fork & Custom Build Guide](https://github.com/zzh20188/GKI_KernelSU_SUSFS/wiki/Fork%E4%B8%8E%E8%87%AA%E5%AE%9A%E4%B9%89%E7%BC%96%E8%AF%91%E6%8C%87%E5%8D%97)** - Learn how to Fork the repo and build your own kernel
+- 🧩 Custom Build Beginner's Guide
+   - Just visit https://zzh20188.github.io/GKI_KernelSU_SUSFS/, find the parameters for the kernel you want to build, then go to Actions and select the custom build workflow to fill them in. ***A custom build timezone converter is also provided here.***
 
 ---
 
-## 🛠️ Post-Installation Recommendations
+## ❗ Common Build Failure Cause (SukiSU / SUSFS Out of Sync)
+
+When the following two branches update at different paces, builds may fail:
+
+- SukiSU builtin branch: <https://github.com/SukiSU-Ultra/SukiSU-Ultra/tree/builtin>
+- SUSFS gki-android14-6.1 branch: <https://gitlab.com/simonpunk/susfs4ksu/-/tree/gki-android14-6.1?ref_type=heads>
+
+For example: SUSFS just pushed a new commit, but SukiSU's `builtin` branch hasn't caught up yet — patching/compiling will likely fail.
+
+In such cases, you can only wait for SukiSU to follow up and complete adaptation with the latest SUSFS commit.
+
+<img src="assets/sukisu_eg1.png" alt="SukiSU builtin update history" width="80%">
+<img src="assets/susfs_eg1.png" alt="SUSFS gki-android14-6.1 update history" width="80%">
+
+## 🔧 Custom Commit Pinning
+Use the [`config/config`](config/config) file to pin SUSFS and SukiSU to specific commits.
+
+**What is a commit?**
+
+A commit is a hash string representing the state of a repository at a specific point in time. For example, setting sukisu to `4b8644515fe6d87a109129e590ccd9d33a855dca` means using the January 30th version of SukiSU to build the kernel.
+
+**Why pin a commit?**
+
+- When upstream updates introduce bugs or compatibility issues, you can roll back to a stable version
+- When SUSFS and SukiSU versions are out of sync causing build failures, you can manually specify compatible versions
+
+**How to get a commit hash?**
+
+- SUSFS: https://gitlab.com/simonpunk/susfs4ksu
+- SukiSU: https://github.com/SukiSU-Ultra/SukiSU-Ultra/commits/builtin/
+
+Taking SUSFS as an example, first select the branch, then copy the commit hash:
+
+![Select branch](assets/susfs_branch.png)
+![Copy commit](assets/susfs_commit.png)
+
+```ini
+# Enable custom commits
+custom=true
+
+# SUSFS commit hash per branch
+gki-android12-5.10=
+gki-android13-5.15=
+gki-android14-6.1=
+gki-android15-6.6=
+
+# SukiSU commit hash
+sukisu=
+```
+
+> Empty value = use the latest commit of that branch.
+
+---
+
+## 🧪 Spoof `/proc/config.gz` (Stock Config)
+
+This is an advanced trick and requires no workflow toggle.  
+The build process auto-detects whether `config/stock_defconfig` exists: if present, it is applied; if absent, it is skipped.
+
+How to use:
+1. Make sure your device is running stock ROM + stock kernel.
+2. Obtain `/proc/config.gz` from your device (phone-side or PC-side workflow both work).
+3. Decompress it, rename it to `stock_defconfig`, upload it to the [`config/`](config/) directory in your repo, and commit (can be done directly on phone).
+
+During the build, the workflow will automatically:
+- Copy it to `$KERNEL_ROOT/common/arch/arm64/configs/stock_defconfig`
+- In `$KERNEL_ROOT/common/kernel/Makefile`, switch the `$(obj)/config_data` rule from `$(KCONFIG_CONFIG)` to `arch/arm64/configs/stock_defconfig`
+- Make `/proc/config.gz` in the built kernel closer to your stock kernel config
+---
+
+## 🛠️ Post-Install Recommendations
 
 ### 📦 Recommended Modules
 
@@ -110,6 +165,11 @@ Wiki Contents:
 |:---:|:---|
 | **FuseFixer** | [Unicode zero-width fix module](https://t.me/real5ec1cff/268) |
 
+### App
+
+| Name | Description |
+|:---:|:---|
+| **Scene** | [Official Site](https://omarea.com/#/) |
 ---
 
 <div align="center">

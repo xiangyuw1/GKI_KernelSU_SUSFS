@@ -31,6 +31,11 @@ on:
         description: "自定义版本名 (可选)"
         required: false
         type: string
+      build_time:
+        description: "自定义构建时间 (可选，N或留空=当前UTC)"
+        required: false
+        type: string
+        default: "Sun Dec 01 08:10:00 UTC 2024"
       use_zram:
         description: "启用 ZRAM 增强算法"
         required: true
@@ -62,6 +67,10 @@ on:
       version:
         required: false
         type: string
+      build_time:
+        required: false
+        type: string
+        default: "Sun Dec 01 08:10:00 UTC 2024"
       use_zram:
         required: true
         type: boolean
@@ -96,18 +105,36 @@ jobs:
           - sub_level: "101"
             os_patch_level: "2022-04"
             revision: "r28"
+          - sub_level: "110"
+            os_patch_level: "2022-07"
+            revision: "r1"
+          - sub_level: "117"
+            os_patch_level: "2022-09"
+            revision: "r1"
           - sub_level: "136"
             os_patch_level: "2022-11"
             revision: "r15"
+          - sub_level: "149"
+            os_patch_level: "2023-01"
+            revision: "r1"
+          - sub_level: "160"
+            os_patch_level: "2023-03"
+            revision: "r1"
           - sub_level: "168"
             os_patch_level: "2023-04"
             revision: "r9"
           - sub_level: "177"
             os_patch_level: "2023-07"
             revision: "r3"
+          - sub_level: "185"
+            os_patch_level: "2023-09"
+            revision: "r1"
           - sub_level: "198"
             os_patch_level: "2024-01"
             revision: "r17"
+          - sub_level: "205"
+            os_patch_level: "2024-03"
+            revision: "r1"
           - sub_level: "209"
             os_patch_level: "2024-05"
             revision: "r13"
@@ -117,6 +144,18 @@ jobs:
           - sub_level: "226"
             os_patch_level: "2024-11"
             revision: "r8"
+          - sub_level: "233"
+            os_patch_level: "2025-02"
+            revision: "r1"
+          - sub_level: "236"
+            os_patch_level: "2025-05"
+            revision: "r1"
+          - sub_level: "237"
+            os_patch_level: "2025-06"
+            revision: "r1"
+          - sub_level: "240"
+            os_patch_level: "2025-09"
+            revision: "r1"
           - sub_level: "246"
             os_patch_level: "2025-12"
             revision: "r1"
@@ -134,6 +173,7 @@ jobs:
       ksu_variant: ${{ inputs.kernelsu_variant }}
       ksu_branch: ${{ inputs.kernelsu_branch }}
       version: ${{ inputs.version || '' }}
+      build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
       use_kpm: ${{ inputs.use_kpm }}
