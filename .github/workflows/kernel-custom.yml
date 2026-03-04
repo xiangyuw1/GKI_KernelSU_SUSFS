@@ -17,7 +17,7 @@ on:
           - android13
           - android14
           - android15
-        default: android12
+        default: android15
       kernel_version:
         description: "内核版本"
         required: true
@@ -27,22 +27,22 @@ on:
           - "5.15"
           - "6.1"
           - "6.6"
-        default: "5.10"
+        default: "6.6"
       sub_level:
         description: "子版本号 (如 66, 198, X)"
         required: true
         type: string
-        default: "66"
+        default: "77"
       os_patch_level:
         description: "安全补丁级别 (如 2022-01, lts)"
         required: true
         type: string
-        default: "2022-01"
+        default: "2025-03"
       revision:
         description: "修订版本 (如 r11, 仅 5.10 需要)"
         required: false
         type: string
-        default: "r11"
+        default: ""
 
       # ==================== KernelSU 配置 ====================
       kernelsu_variant:
@@ -75,14 +75,14 @@ on:
         description: "自定义构建时间 (可选，N或留空=当前UTC)"
         required: false
         type: string
-        default: "Sun Dec 01 08:10:00 UTC 2024"
+        default: ""
 
       # ==================== 功能开关 ====================
       use_zram:
         description: "启用 ZRAM 增强算法"
         required: true
         type: boolean
-        default: true
+        default: false
       use_bbg:
         description: "启用 BBG 防格机"
         required: true
