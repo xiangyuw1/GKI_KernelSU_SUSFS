@@ -29,7 +29,7 @@ on:
           - "6.1"
           - "6.6"
           - "6.12"
-        default: "5.10"
+        default: "6.6"
       sub_level:
         description: "子版本号 (如 66, 198, X)"
         required: true
@@ -57,7 +57,7 @@ on:
           - MKSU
           - SukiSU
           - ReSukiSU
-        default: ReSukiSU
+        default: SukiSU
       kernelsu_branch:
         description: "KSU 分支"
         required: true
